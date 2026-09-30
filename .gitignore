@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Rahasia - JANGAN PERNAH commit .env (isinya bisa ada DEFAULT_API_KEY asli)
+.env
+!.env.example
+
+# Log & runtime
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

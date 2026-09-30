@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Chat App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="description" id="meta-description" content="Aplikasi chat AI open source multi-provider — tinggal input domain penyedia AI (OpenAI-compatible) + API key, model auto-terdeteksi" />
+<link rel="icon" type="image/png" href="favicon.png?v=1" />
+<link rel="stylesheet" href="style.css?v=18" />
+<!-- JSZip/pdf.js/mammoth/xlsx/jsPDF SENGAJA TIDAK dimuat di sini lagi -
+     koneksi banyak user app ini sangat lambat, jadi 5 library besar (ratusan
+     KB total) yang blocking di <head> bikin loading awal lama padahal belum
+     tentu dipakai. Sekarang dimuat ON-DEMAND lewat loadScriptOnce()/ensure*Ready()
+     di app.js, cuma pas fitur upload/PDF-nya beneran dipakai. -->
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="logo.png?v=1" alt="" class="brand-mark-img" />
+        </span>
+        <div class="brand-text">
+          <h1 id="app-name">AI Chat</h1>
+          <p id="app-tagline">Provider apa saja, tinggal ganti domain</p>
+        </div>
+        <button id="btn-close-sidebar" class="icon-btn sidebar-close" data-i18n-aria="ariaCloseSidebar" aria-label="Tutup menu">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="field session-field">
+        <button type="button" id="btn-new-chat" class="btn-new-chat">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          <span data-i18n-text="btnNewChat">Chat baru</span>
+        </button>
+        <div id="session-list" class="session-list"></div>
+      </div>
+
+      <div class="sidebar-bottom-actions">
+        <button id="btn-open-settings" class="secondary" type="button">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M16.2 12.4a1.3 1.3 0 0 0 .26 1.43l.05.05a1.57 1.57 0 1 1-2.22 2.22l-.05-.05a1.3 1.3 0 0 0-1.43-.26 1.3 1.3 0 0 0-.79 1.19v.14a1.57 1.57 0 1 1-3.14 0v-.07a1.3 1.3 0 0 0-.85-1.19 1.3 1.3 0 0 0-1.43.26l-.05.05a1.57 1.57 0 1 1-2.22-2.22l.05-.05a1.3 1.3 0 0 0 .26-1.43 1.3 1.3 0 0 0-1.19-.79h-.14a1.57 1.57 0 1 1 0-3.14h.07a1.3 1.3 0 0 0 1.19-.85 1.3 1.3 0 0 0-.26-1.43l-.05-.05A1.57 1.57 0 1 1 6.48 3.7l.05.05a1.3 1.3 0 0 0 1.43.26h.06a1.3 1.3 0 0 0 .79-1.19v-.14a1.57 1.57 0 1 1 3.14 0v.07a1.3 1.3 0 0 0 .79 1.19h.06a1.3 1.3 0 0 0 1.43-.26l.05-.05a1.57 1.57 0 1 1 2.22 2.22l-.05.05a1.3 1.3 0 0 0-.26 1.43v.06a1.3 1.3 0 0 0 1.19.79h.14a1.57 1.57 0 1 1 0 3.14h-.07a1.3 1.3 0 0 0-1.19.79Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n-text="menuSettings">Pengaturan</span>
+        </button>
+        <button id="btn-open-language" class="secondary" type="button">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M2 10h16M10 2c2 2.2 3 5 3 8s-1 5.8-3 8c-2-2.2-3-5-3-8s1-5.8 3-8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n-text="menuLanguage">Bahasa</span>
+        </button>
+        <button id="btn-open-support" class="secondary" type="button" style="display:none;">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7.6 7.6a2.4 2.4 0 1 1 3.4 2.18c-.62.29-1 .95-1 1.63v.29" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M10 14.7v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span data-i18n-text="menuSupport">Bantuan</span>
+        </button>
+        <button id="btn-clear" class="secondary">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M4 6h12M8 6V4.5A1.5 1.5 0 0 1 9.5 3h1A1.5 1.5 0 0 1 12 4.5V6m-6 0 .6 9.4A2 2 0 0 0 8.6 17h2.8a2 2 0 0 0 2-1.6L14 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="btn-clear-text" data-i18n-text="btnClear">Bersihkan chat</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer" id="app-footer">Open source multi-provider AI chat</div>
+    </aside>
+
+    <div class="modal-overlay" id="settings-overlay"></div>
+
+    <div class="app-modal" id="settings-modal" role="dialog" aria-modal="true" data-i18n-aria="settingsModalLabel" aria-label="Pengaturan provider">
+      <div class="app-modal-header">
+        <h2 data-i18n-text="settingsTitle">Pengaturan provider &amp; model</h2>
+        <button id="btn-close-settings" class="icon-btn" data-i18n-aria="ariaCloseSettings" aria-label="Tutup pengaturan">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="app-modal-body">
+        <div class="field">
+          <label for="provider-select" id="label-provider-select" data-i18n-text="labelProviderSelect">Provider tersimpan</label>
+          <div class="select-wrap">
+            <select id="provider-select">
+              <option value="__new__" data-i18n-text="optionNewProvider">+ Provider baru</option>
+            </select>
+            <svg class="select-caret" viewBox="0 0 12 8" fill="none" aria-hidden="true">
+              <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="field">
+          <label id="label-preset" data-i18n-text="labelPreset">Preset cepat</label>
+          <div id="preset-chips" class="chips"></div>
+        </div>
+
+        <div class="field">
+          <label for="provider-name" id="label-provider-name" data-i18n-text="labelProviderName">Nama provider</label>
+          <input type="text" id="provider-name" data-i18n-placeholder="placeholderProviderName" placeholder="mis. Groq, OpenAI, OpenRouter..." autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="provider-baseurl" id="label-baseurl" data-i18n-text="labelBaseurl">Domain / base URL API</label>
+          <input type="text" id="provider-baseurl" data-i18n-placeholder="placeholderBaseurl" placeholder="https://api.contoh.com/v1" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="apikey" id="label-apikey" data-i18n-text="labelApikey">API key</label>
+          <input type="password" id="apikey" data-i18n-placeholder="placeholderApikey" placeholder="Tempel API key di sini..." autocomplete="off" />
+          <button id="btn-connect" data-i18n-text="btnConnect">Sambungkan &amp; cari model</button>
+          <button id="btn-delete-provider" class="secondary" type="button" data-i18n-text="btnDeleteProvider">Hapus provider ini</button>
+          <div id="connect-status" class="status"></div>
+        </div>
+
+        <div class="field">
+          <label for="model-select" id="label-model" data-i18n-text="labelModel">Model</label>
+          <div class="select-wrap">
+            <select id="model-select" disabled>
+              <option value="" data-i18n-text="optionNoModel">Belum ada model</option>
+            </select>
+            <svg class="select-caret" viewBox="0 0 12 8" fill="none" aria-hidden="true">
+              <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <button id="btn-update-models" class="secondary btn-update-models" type="button" data-i18n-text="btnUpdateModels" style="display:none">🔄 Update model</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="support-overlay"></div>
+
+    <div class="app-modal" id="support-modal" role="dialog" aria-modal="true" data-i18n-aria="supportModalLabel" aria-label="Bantuan">
+      <div class="app-modal-header">
+        <h2 id="support-title" data-i18n-text="supportTitle">Butuh bantuan?</h2>
+        <button id="btn-close-support" class="icon-btn" data-i18n-aria="ariaCloseSupport" aria-label="Tutup bantuan">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="app-modal-body">
+        <div id="support-links" class="support-links"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="language-overlay"></div>
+
+    <div class="app-modal app-modal-sm" id="language-modal" role="dialog" aria-modal="true" data-i18n-aria="languageModalLabel" aria-label="Bahasa">
+      <div class="app-modal-header">
+        <h2 data-i18n-text="languageTitle">Bahasa</h2>
+        <button id="btn-close-language" class="icon-btn" data-i18n-aria="ariaCloseLanguage" aria-label="Tutup">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="app-modal-body">
+        <div id="language-list" class="lang-list"></div>
+      </div>
+    </div>
+
+    <main class="chat-area">
+      <header class="chat-header">
+        <button id="btn-open-sidebar" class="icon-btn menu-btn" data-i18n-aria="ariaOpenSidebar" aria-label="Buka menu">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <span class="chat-header-model" id="header-model" data-i18n-text="headerModelDefault">Belum ada model dipilih</span>
+        <span class="conn-indicator idle" id="header-conn">
+          <span class="dot"></span>
+          <span id="header-conn-text" data-i18n-text="connIdle">Belum tersambung</span>
+        </span>
+        <label class="auto-switch" id="auto-switch-wrap" for="auto-toggle" data-i18n-title="autoSwitchTitle" title="Auto: pakai provider bawaan otomatis, tanpa perlu isi API key sendiri">
+          <span class="auto-switch-label">Auto</span>
+          <input type="checkbox" id="auto-toggle" class="auto-switch-input" />
+          <span class="auto-switch-track" aria-hidden="true">
+            <span class="auto-switch-thumb"></span>
+            <span class="auto-switch-text auto-switch-text-on">ON</span>
+            <span class="auto-switch-text auto-switch-text-off">OFF</span>
+          </span>
+        </label>
+      </header>
+
+      <div id="messages" class="messages"></div>
+
+      <form id="chat-form" class="chat-input">
+        <div id="file-chips" class="file-chips"></div>
+        <div class="chat-input-row">
+          <input type="file" id="file-input" multiple hidden class="visually-hidden" />
+          <label for="file-input" id="btn-attach" class="icon-btn attach-btn" data-i18n-aria="ariaAttachFile" data-i18n-title="ariaAttachFile" aria-label="Upload file" title="Upload file" role="button" tabindex="0">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M14.5 7.5 8.4 13.6a2.5 2.5 0 1 1-3.54-3.54l6.36-6.36a4 4 0 1 1 5.66 5.66l-6.72 6.72a1.5 1.5 0 1 1-2.12-2.12l5.66-5.66"
+                stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </label>
+          <input type="file" id="image-input" accept="image/*" multiple hidden class="visually-hidden" />
+          <label for="image-input" id="btn-attach-image" class="icon-btn attach-btn" data-i18n-aria="ariaAttachImage" data-i18n-title="ariaAttachImage" aria-label="Upload gambar" title="Upload gambar" role="button" tabindex="0">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <rect x="3" y="4" width="14" height="12" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="7.5" cy="8.3" r="1.2" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M3.5 14.5l4-4a1.4 1.4 0 0 1 2 0l3 3m-1.5-1.5 1-1a1.4 1.4 0 0 1 2 0l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </label>
+          <textarea id="chat-text" data-i18n-placeholder="chatPlaceholder" placeholder="Ketik pesan..." rows="1"></textarea>
+          <button type="submit" id="btn-send">
+            <span id="btn-send-text" data-i18n-text="btnSend">Kirim</span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M3 10h13m0 0-5.5-5.5M16 10l-5.5 5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script src="config.js?v=9"></script>
+  <script src="app.js?v=48"></script>
+</body>
+</html>
